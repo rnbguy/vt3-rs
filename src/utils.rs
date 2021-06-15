@@ -4,6 +4,8 @@ use reqwest::{
     StatusCode,
 };
 
+use std::io::{BufRead, BufReader};
+
 use serde::de::DeserializeOwned;
 
 #[cfg(feature = "enterprise")]
@@ -150,7 +152,7 @@ where
 }
 
 #[inline]
-fn process_resp_bz<T>(resp: Response) -> VtResult<T>
+fn process_resp_bz<T>(resp: Response) -> VtResult<Vec<T>>
 where
     T: DeserializeOwned,
 {
@@ -159,14 +161,18 @@ where
     match status {
         StatusCode::OK => {
             let read = bzip2::read::BzDecoder::new(resp);
-            Ok(serde_json::from_reader(read)?) // 200
+            Ok(BufReader::new(read)
+                .lines()
+                .flatten()
+                .filter_map(|line| serde_json::from_str(&line).ok())
+                .collect()) // 200
         }
         _ => Err((status, resp.text()?).into()),
     }
 }
 
 /// GET from a URL
-pub(crate) fn http_get_bz<T>(api_key: &str, user_agent: &str, url: &str) -> VtResult<T>
+pub(crate) fn http_get_bz<T>(api_key: &str, user_agent: &str, url: &str) -> VtResult<Vec<T>>
 where
     T: DeserializeOwned,
 {
@@ -185,7 +191,7 @@ pub(crate) fn http_get_with_params_bz<T>(
     user_agent: &str,
     url: &str,
     query_params: &[(&str, &str)],
-) -> VtResult<T>
+) -> VtResult<Vec<T>>
 where
     T: DeserializeOwned,
 {
@@ -205,7 +211,7 @@ pub(crate) fn http_post_bz<T>(
     user_agent: &str,
     url: &str,
     form_data: &[(&str, &str)],
-) -> VtResult<T>
+) -> VtResult<Vec<T>>
 where
     T: DeserializeOwned,
 {
@@ -225,7 +231,7 @@ pub(crate) fn http_multipart_post_bz<T>(
     user_agent: &str,
     url: &str,
     form_data: Form,
-) -> VtResult<T>
+) -> VtResult<Vec<T>>
 where
     T: DeserializeOwned,
 {
@@ -246,7 +252,7 @@ pub(crate) fn http_body_post_bz<S, T>(
     user_agent: &str,
     url: &str,
     data: S,
-) -> VtResult<T>
+) -> VtResult<Vec<T>>
 where
     S: Serialize,
     T: DeserializeOwned,
@@ -262,7 +268,7 @@ where
 }
 
 /// DELETE
-pub(crate) fn http_delete_bz<T>(api_key: &str, user_agent: &str, url: &str) -> VtResult<T>
+pub(crate) fn http_delete_bz<T>(api_key: &str, user_agent: &str, url: &str) -> VtResult<Vec<T>>
 where
     T: DeserializeOwned,
 {
@@ -282,7 +288,7 @@ pub(crate) fn http_patch_bz<S, T>(
     user_agent: &str,
     url: &str,
     data: S,
-) -> VtResult<T>
+) -> VtResult<Vec<T>>
 where
     S: Serialize,
     T: DeserializeOwned,

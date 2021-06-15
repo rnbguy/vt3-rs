@@ -11,6 +11,9 @@ license-file = "LICENSE"
 exclude = ["examples", "data"]
 edition = "2018"
 
+[package.metadata.docs.rs]
+all-features = true
+
 [dependencies]
 base64 = "0.13.0"
 bzip2 = "0.4.3"
